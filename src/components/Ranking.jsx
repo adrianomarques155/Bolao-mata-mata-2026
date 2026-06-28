@@ -25,6 +25,7 @@ function corPontos(pts) {
 export default function Ranking({ user }) {
   const [usuarios, setUsuarios] = useState([])
   const [resultados, setResultados] = useState({})
+  const [timesJogos, setTimesJogos] = useState({})
   const [palpites, setPalpites] = useState({})
   const [loading, setLoading] = useState(true)
   const [aba, setAba] = useState('ranking')
@@ -38,7 +39,10 @@ export default function Ranking({ user }) {
     const u2 = onSnapshot(collection(db,'mm_resultados'), snap => {
       const r={}; snap.forEach(d=>{r[d.id]=d.data()}); setResultados(r)
     })
-    return () => { u1(); u2() }
+    const u3 = onSnapshot(collection(db,'mm_times'), snap => {
+      const t={}; snap.forEach(d=>{t[d.id]=d.data()}); setTimesJogos(t)
+    })
+    return () => { u1(); u2(); u3() }
   }, [])
 
   useEffect(() => {
@@ -52,6 +56,9 @@ export default function Ranking({ user }) {
       setLoading(false)
     })
   }, [usuarios, resultados])
+
+  function getTime1(jogo) { return timesJogos[String(jogo.id)]?.time1 || jogo.time1 }
+  function getTime2(jogo) { return timesJogos[String(jogo.id)]?.time2 || jogo.time2 }
 
   const jogosComResultado = JOGOS.filter(j => resultados[String(j.id)])
 
@@ -89,7 +96,7 @@ export default function Ranking({ user }) {
     const W=640, H=320, PL=44, PR=120, PT=20, PB=36
     const gW=W-PL-PR, gH=H-PT-PB
     function xPos(i,total) { return total<=1?PL+gW/2:PL+(i/total)*gW }
-    function yPos(pts) { return PT+gH-(pts/maxPts)*gH }
+    function yPos(p) { return PT+gH-(p/maxPts)*gH }
     return (
       <div style={{overflowX:'auto'}}>
         <svg viewBox={`0 0 ${W} ${H}`} style={{width:'100%',minWidth:360,maxWidth:700,display:'block',margin:'0 auto'}}>
@@ -149,7 +156,7 @@ export default function Ranking({ user }) {
       </div>
     )
     const thStyle = {
-      padding:'8px 10px',fontSize:11,fontWeight:700,color:'#fff',
+      padding:'8px 6px',fontSize:10,fontWeight:700,color:'#fff',
       background:'#7b1fa2',whiteSpace:'nowrap',textAlign:'center',position:'sticky',top:0
     }
     return (
@@ -157,13 +164,21 @@ export default function Ranking({ user }) {
         <table style={{borderCollapse:'collapse',minWidth:400,width:'100%',fontSize:13}}>
           <thead>
             <tr>
-              <th style={{...thStyle,left:0,minWidth:180,textAlign:'left',position:'sticky',zIndex:3}}>Participante</th>
-              <th style={{...thStyle,minWidth:70,background:'#6a1b9a',position:'sticky',left:180,zIndex:3}}>Total</th>
-              {jogosComResultado.map((j,i) => (
-                <th key={j.id} style={{...thStyle,minWidth:52,background:i%2===0?'#7b1fa2':'#6a1b9a'}}>
-                  <div style={{fontSize:9}}>J{j.id}</div>
-                </th>
-              ))}
+              <th style={{...thStyle,left:0,minWidth:160,textAlign:'left',position:'sticky',zIndex:3}}>Participante</th>
+              <th style={{...thStyle,minWidth:60,background:'#6a1b9a',position:'sticky',left:160,zIndex:3}}>Total</th>
+              {jogosComResultado.map((j,i) => {
+                const t1 = getTime1(j)
+                const t2 = getTime2(j)
+                const label1 = t1.startsWith('Vencedor')||t1.startsWith('Perdedor') ? `J${j.id}` : t1.substring(0,3)
+                const label2 = t2.startsWith('Vencedor')||t2.startsWith('Perdedor') ? '' : t2.substring(0,3)
+                return (
+                  <th key={j.id} style={{...thStyle,minWidth:52,background:i%2===0?'#7b1fa2':'#6a1b9a'}}>
+                    <div>{label1}</div>
+                    {label2 && <div style={{fontSize:8,opacity:0.7}}>×</div>}
+                    {label2 && <div>{label2}</div>}
+                  </th>
+                )
+              })}
             </tr>
           </thead>
           <tbody>
@@ -171,14 +186,14 @@ export default function Ranking({ user }) {
               const isMe = user && r.id === user.uid
               return (
                 <tr key={r.id} style={{background:isMe?'#f3e5f5':i%2===0?'#fff':'#fafafa'}}>
-                  <td style={{padding:'8px 10px',fontWeight:600,whiteSpace:'nowrap',position:'sticky',left:0,background:isMe?'#f3e5f5':i%2===0?'#fff':'#fafafa',zIndex:1,borderRight:'2px solid #e0e0e0',minWidth:180}}>
+                  <td style={{padding:'8px 10px',fontWeight:600,whiteSpace:'nowrap',position:'sticky',left:0,background:isMe?'#f3e5f5':i%2===0?'#fff':'#fafafa',zIndex:1,borderRight:'2px solid #e0e0e0',minWidth:160}}>
                     <span style={{marginRight:6}}>{medalhas[i]||`${i+1}º`}</span>
                     {r.nome.split(' ')[0]} {isMe?'(você)':''}
                   </td>
-                  <td style={{padding:'8px 10px',textAlign:'center',fontWeight:800,fontSize:15,color:'#7b1fa2',position:'sticky',left:180,background:isMe?'#f3e5f5':i%2===0?'#fff':'#fafafa',zIndex:1,borderRight:'2px solid #e0e0e0'}}>
+                  <td style={{padding:'8px 10px',textAlign:'center',fontWeight:800,fontSize:15,color:'#7b1fa2',position:'sticky',left:160,background:isMe?'#f3e5f5':i%2===0?'#fff':'#fafafa',zIndex:1,borderRight:'2px solid #e0e0e0'}}>
                     {r.pts}
                   </td>
-                  {jogosComResultado.map((j,ji) => {
+                  {jogosComResultado.map((j) => {
                     const pp = r.pontosPorJogo[j.id]
                     const p = (palpites[r.id]||{})[String(j.id)]
                     const res = resultados[String(j.id)]
@@ -204,7 +219,7 @@ export default function Ranking({ user }) {
           <tfoot>
             <tr style={{background:'#f5f5f5'}}>
               <td style={{padding:'6px 10px',fontSize:11,color:'#888',position:'sticky',left:0,background:'#f5f5f5',fontWeight:600}}>Resultado</td>
-              <td style={{position:'sticky',left:180,background:'#f5f5f5',borderRight:'2px solid #e0e0e0'}}/>
+              <td style={{position:'sticky',left:160,background:'#f5f5f5',borderRight:'2px solid #e0e0e0'}}/>
               {jogosComResultado.map(j => {
                 const r = resultados[String(j.id)]
                 return (
@@ -298,7 +313,7 @@ export default function Ranking({ user }) {
       {aba === 'tabela' && (
         <>
           <h2 style={{fontSize:20,fontWeight:700,marginBottom:4,color:'#7b1fa2'}}>📊 Tabela de pontos</h2>
-          <p style={{fontSize:13,color:'#888',marginBottom:16}}>Pontuação detalhada por jogo</p>
+          <p style={{fontSize:13,color:'#888',marginBottom:16}}>Pontuação detalhada por jogo • Passe o mouse para ver o palpite</p>
           <TabelaPontos />
         </>
       )}
