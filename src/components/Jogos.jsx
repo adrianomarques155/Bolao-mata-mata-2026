@@ -3,6 +3,7 @@ import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { JOGOS } from '../jogos'
 import { calcPontos, ptsColor, ptsLabel } from '../pontuacao'
+import RaioX from './RaioX'
 
 function getDeadline(jogo) {
   const [y,m,d] = jogo.data.split('-').map(Number)
@@ -13,22 +14,22 @@ function getDeadline(jogo) {
 }
 
 function faseLabel(fase) {
-  if (fase==='16avos')   return '16 avos de final'
-  if (fase==='oitavas')  return 'Oitavas de final'
-  if (fase==='quartas')  return 'Quartas de final'
+  if (fase==='16avos')    return '16 avos de final'
+  if (fase==='oitavas')   return 'Oitavas de final'
+  if (fase==='quartas')   return 'Quartas de final'
   if (fase==='semifinal') return 'Semifinal'
-  if (fase==='terceiro') return '3º lugar'
-  if (fase==='final')    return 'FINAL'
+  if (fase==='terceiro')  return '3º lugar'
+  if (fase==='final')     return 'FINAL'
   return fase
 }
 
 function faseCor(fase) {
-  if (fase==='16avos')   return '#7b1fa2'
-  if (fase==='oitavas')  return '#1565c0'
-  if (fase==='quartas')  return '#e65100'
+  if (fase==='16avos')    return '#7b1fa2'
+  if (fase==='oitavas')   return '#1565c0'
+  if (fase==='quartas')   return '#e65100'
   if (fase==='semifinal') return '#c62828'
-  if (fase==='terceiro') return '#558b2f'
-  if (fase==='final')    return '#f9a825'
+  if (fase==='terceiro')  return '#558b2f'
+  if (fase==='final')     return '#f9a825'
   return '#888'
 }
 
@@ -41,6 +42,7 @@ const s = {
   vs: {padding:'0 16px',fontSize:14,color:'#999',textAlign:'center',minWidth:80},
   inp: {width:44,padding:'6px',borderRadius:6,border:'1px solid #ddd',fontSize:16,textAlign:'center'},
   saveBtn: {padding:'6px 14px',borderRadius:8,border:'none',background:'#7b1fa2',color:'#fff',cursor:'pointer',fontSize:13,fontWeight:600},
+  raioxBtn: {padding:'6px 14px',borderRadius:8,border:'none',background:'#f3e5f5',color:'#7b1fa2',cursor:'pointer',fontSize:13,fontWeight:600},
   badge: (c) => ({display:'inline-block',padding:'3px 10px',borderRadius:99,background:c,color:'#fff',fontSize:12,fontWeight:600}),
   info: {fontSize:12,color:'#888',marginTop:4},
   palpRow: {display:'flex',alignItems:'center',gap:8,flexWrap:'wrap',marginTop:10,paddingTop:10,borderTop:'1px solid #f0f0f0'},
@@ -54,6 +56,7 @@ export default function Jogos({ user, isAdmin }) {
   const [editando, setEditando] = useState({})
   const [fase, setFase] = useState('TODOS')
   const [msg, setMsg] = useState('')
+  const [raioxJogo, setRaioxJogo] = useState(null)
 
   useEffect(() => {
     const ultima = localStorage.getItem('ultima_atualizacao_mm')
@@ -84,21 +87,16 @@ export default function Jogos({ user, isAdmin }) {
   }, [user])
 
   const fases = ['TODOS','16avos','oitavas','quartas','semifinal','terceiro','final']
+  const filtrados = fase==='TODOS' ? JOGOS : JOGOS.filter(j=>j.fase===fase)
 
-  function getTime1(jogo) {
-    return timesJogos[String(jogo.id)]?.time1 || jogo.time1
-  }
-  function getTime2(jogo) {
-    return timesJogos[String(jogo.id)]?.time2 || jogo.time2
-  }
+  function getTime1(jogo) { return timesJogos[String(jogo.id)]?.time1 || jogo.time1 }
+  function getTime2(jogo) { return timesJogos[String(jogo.id)]?.time2 || jogo.time2 }
   function jogoDefinido(jogo) {
     const t1 = getTime1(jogo)
     const t2 = getTime2(jogo)
     return !t1.startsWith('Vencedor') && !t1.startsWith('Perdedor') &&
            !t2.startsWith('Vencedor') && !t2.startsWith('Perdedor')
   }
-
-  const filtrados = fase==='TODOS' ? JOGOS : JOGOS.filter(j=>j.fase===fase)
 
   function showMsg(m) { setMsg(m); setTimeout(()=>setMsg(''),2500) }
 
@@ -119,9 +117,21 @@ export default function Jogos({ user, isAdmin }) {
   return (
     <div>
       {msg && <div style={{position:'fixed',top:72,left:'50%',transform:'translateX(-50%)',background:'#7b1fa2',color:'#fff',padding:'8px 20px',borderRadius:99,zIndex:999,fontSize:14,fontWeight:600,boxShadow:'0 4px 12px rgba(0,0,0,0.2)'}}>{msg}</div>}
+
+      {raioxJogo && (
+        <RaioX
+          jogo={raioxJogo}
+          time1={getTime1(raioxJogo)}
+          time2={getTime2(raioxJogo)}
+          resultado={resultados[String(raioxJogo.id)]}
+          onClose={() => setRaioxJogo(null)}
+        />
+      )}
+
       <div style={s.filtros}>
         {fases.map(f=><button key={f} style={s.fBtn(fase===f)} onClick={()=>setFase(f)}>{f==='TODOS'?'Todos':faseLabel(f)}</button>)}
       </div>
+
       {filtrados.map(jogo => {
         const key = String(jogo.id)
         const res = resultados[key]
@@ -132,6 +142,8 @@ export default function Jogos({ user, isAdmin }) {
         const pts = meuP && res ? calcPontos(meuP,res) : null
         const t1 = getTime1(jogo)
         const t2 = getTime2(jogo)
+        const prazoFechou = new Date() >= getDeadline(jogo)
+
         return (
           <div key={jogo.id} style={s.card}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:4}}>
@@ -140,6 +152,7 @@ export default function Jogos({ user, isAdmin }) {
                 {new Date(jogo.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'})} • {jogo.hora}h • {jogo.cidade}
               </span>
             </div>
+
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',margin:'8px 0'}}>
               <span style={{...s.time,color:definido?'#1a1a1a':'#aaa'}}>{t1}</span>
               {res
@@ -148,11 +161,13 @@ export default function Jogos({ user, isAdmin }) {
               }
               <span style={{...s.time,textAlign:'right',color:definido?'#1a1a1a':'#aaa'}}>{t2}</span>
             </div>
+
             {!definido && (
               <div style={{fontSize:12,color:'#aaa',textAlign:'center',marginBottom:4}}>
                 ⏳ Aguardando definição dos times
               </div>
             )}
+
             {user && !isAdmin && definido && (
               <div style={s.palpRow}>
                 <span style={{fontSize:13,color:'#666',marginRight:4}}>Palpite:</span>
@@ -181,8 +196,17 @@ export default function Jogos({ user, isAdmin }) {
                 )}
               </div>
             )}
+
             {!user && definido && (
               <div style={{...s.palpRow,color:'#888',fontSize:13}}>Entre para fazer seu palpite</div>
+            )}
+
+            {prazoFechou && definido && user && (
+              <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid #f0f0f0'}}>
+                <button style={s.raioxBtn} onClick={()=>setRaioxJogo(jogo)}>
+                  📊 Ver Raio-X dos palpites
+                </button>
+              </div>
             )}
           </div>
         )
