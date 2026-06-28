@@ -73,7 +73,7 @@ export default function App() {
         onCadastro={() => setAuthModal('cadastro')}
       />
       <div style={{maxWidth:780,margin:'0 auto',padding:'16px 12px 40px'}}>
-        {!perfil?.pago && !isAdmin && (
+        {!perfil?.pagoMM && !isAdmin && (
           <div style={{background:'#fff3e0',border:'1px solid #ffb74d',borderRadius:12,padding:'14px 16px',marginBottom:16,fontSize:14}}>
             ⚠️ <strong>Pagamento pendente.</strong> Seus palpites não contam no ranking até a confirmação do PIX.
             <div style={{marginTop:4,color:'#888'}}>Chave PIX: <strong>olavosmlima@gmail.com</strong> — R$ 100,00</div>

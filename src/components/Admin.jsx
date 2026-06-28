@@ -63,7 +63,6 @@ export default function Admin() {
   const filtrados = JOGOS.filter(j=>j.fase===fase)
 
   function showMsg(m) { setMsg(m); setTimeout(()=>setMsg(''),2500) }
-
   function getTime1(jogo) { return timesJogos[String(jogo.id)]?.time1 || jogo.time1 }
   function getTime2(jogo) { return timesJogos[String(jogo.id)]?.time2 || jogo.time2 }
 
@@ -99,13 +98,13 @@ export default function Admin() {
     showMsg('Jogo atualizado! ✓')
   }
 
-  async function togglePagamento(uid, pago) {
-    await updateDoc(doc(db,'usuarios',uid), { pago: !pago })
-    showMsg(!pago ? '✅ Pagamento confirmado!' : '⚠️ Pagamento removido.')
+  async function togglePagamento(uid, pagoMM) {
+    await updateDoc(doc(db,'usuarios',uid), { pagoMM: !pagoMM })
+    showMsg(!pagoMM ? '✅ Pagamento confirmado!' : '⚠️ Pagamento removido.')
   }
 
-  const pagos = Object.entries(usuarios).filter(([,u])=>u.pago)
-  const nPagos = Object.entries(usuarios).filter(([,u])=>!u.pago)
+  const pagos = Object.entries(usuarios).filter(([,u])=>u.pagoMM)
+  const nPagos = Object.entries(usuarios).filter(([,u])=>!u.pagoMM)
   const totalArrecadado = pagos.length * 100
 
   return (
@@ -207,14 +206,12 @@ export default function Admin() {
                   J{jogo.id} • {faseLabel(jogo.fase)} • {new Date(jogo.data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})} {jogo.hora}h
                 </div>
                 <div style={{fontWeight:600,marginBottom:12,color:definido?'#1a1a1a':'#aaa'}}>{t1} × {t2}</div>
-
                 <div style={{marginBottom:12}}>
                   <div style={{fontSize:12,fontWeight:600,color:'#555',marginBottom:6}}>✏️ Atualizar times:</div>
-                  <input style={s.inpText} placeholder="Time 1" value={et.time1||t1} onChange={e=>setEditTimes(p=>({...p,[jogo.id]:{...et,time1:e.target.value}}))} />
-                  <input style={s.inpText} placeholder="Time 2" value={et.time2||t2} onChange={e=>setEditTimes(p=>({...p,[jogo.id]:{...et,time2:e.target.value}}))} />
+                  <input style={s.inpText} placeholder="Time 1" value={et.time1!==undefined?et.time1:t1} onChange={e=>setEditTimes(p=>({...p,[jogo.id]:{...et,time1:e.target.value}}))} />
+                  <input style={s.inpText} placeholder="Time 2" value={et.time2!==undefined?et.time2:t2} onChange={e=>setEditTimes(p=>({...p,[jogo.id]:{...et,time2:e.target.value}}))} />
                   <button style={s.btn()} onClick={()=>salvarTimes(jogo.id)}>Salvar times</button>
                 </div>
-
                 <div>
                   <div style={{fontSize:12,fontWeight:600,color:'#555',marginBottom:6}}>🕐 Ajustar data/hora:</div>
                   <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
@@ -260,8 +257,9 @@ export default function Admin() {
                   <div style={{fontWeight:600}}>{u.nome}</div>
                   <div style={{fontSize:12,color:'#888'}}>{u.email} {u.telefone?`• ${u.telefone}`:''}</div>
                   {u.cpf && <div style={{fontSize:12,color:'#888'}}>CPF: {u.cpf}</div>}
+                  {u.pago && <div style={{fontSize:11,color:'#2e7d32'}}>✅ Pagou o bolão da fase de grupos</div>}
                 </div>
-                <button style={s.btn('#2e7d32')} onClick={()=>togglePagamento(uid,u.pago)}>✅ Confirmar</button>
+                <button style={s.btn('#2e7d32')} onClick={()=>togglePagamento(uid,u.pagoMM)}>✅ Confirmar</button>
               </div>
             </div>
           ))}
@@ -275,7 +273,7 @@ export default function Admin() {
                   <div style={{fontSize:12,color:'#888'}}>{u.email} {u.telefone?`• ${u.telefone}`:''}</div>
                   {u.cpf && <div style={{fontSize:12,color:'#888'}}>CPF: {u.cpf}</div>}
                 </div>
-                <button style={s.btn('#c62828')} onClick={()=>togglePagamento(uid,u.pago)}>❌ Remover</button>
+                <button style={s.btn('#c62828')} onClick={()=>togglePagamento(uid,u.pagoMM)}>❌ Remover</button>
               </div>
             </div>
           ))}
@@ -289,14 +287,15 @@ export default function Admin() {
             <div key={uid} style={s.userCard}>
               <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8}}>
                 <div>
-                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
                     <span style={{fontWeight:600,fontSize:15}}>{u.nome}</span>
-                    <span style={s.badge(u.pago?'#2e7d32':'#e65100')}>{u.pago?'✅ Pago':'⏳ Pendente'}</span>
+                    <span style={s.badge(u.pagoMM?'#2e7d32':'#e65100')}>{u.pagoMM?'✅ Pago MM':'⏳ Pendente MM'}</span>
+                    {u.pago && <span style={s.badge('#1565c0')}>✅ Pago GF</span>}
                   </div>
                   <div style={{fontSize:12,color:'#888',marginTop:2}}>{u.email}</div>
                   {u.telefone && <div style={{fontSize:12,color:'#888'}}>📱 {u.telefone}</div>}
                   {u.cpf && <div style={{fontSize:12,color:'#888'}}>🪪 {u.cpf}</div>}
-                  <div style={{fontSize:12,color:'#888'}}>Palpites: {Object.keys((palpites[uid]||{})).length} jogos</div>
+                  <div style={{fontSize:12,color:'#888'}}>Palpites MM: {Object.keys((palpites[uid]||{})).length} jogos</div>
                 </div>
               </div>
             </div>

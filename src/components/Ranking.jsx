@@ -56,7 +56,7 @@ export default function Ranking({ user }) {
   const jogosComResultado = JOGOS.filter(j => resultados[String(j.id)])
 
   const ranking = usuarios
-    .filter(u => u.pago)
+    .filter(u => u.pagoMM)
     .map(u => {
       let pts=0, acertos=0, total=0
       const evolucao = []
