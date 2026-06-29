@@ -58,6 +58,7 @@ export default function Jogos({ user, isAdmin }) {
   const [fase, setFase] = useState('TODOS')
   const [msg, setMsg] = useState('')
   const [raioxJogo, setRaioxJogo] = useState(null)
+  const [raioxModo, setRaioxModo] = useState('lista')
 
   useEffect(() => {
     const ultima = localStorage.getItem('ultima_atualizacao_mm')
@@ -84,7 +85,6 @@ export default function Jogos({ user, isAdmin }) {
     const unsub = onSnapshot(collection(db,'mm_palpites',user.uid,'jogos'), snap => {
       const p={}; snap.forEach(d=>{p[d.id]=d.data()}); setMeusPalpites(p)
     })
-    // Busca perfil para ter o nome
     getDoc(doc(db,'usuarios',user.uid)).then(snap => {
       if (snap.exists()) setPerfilUsuario(snap.data())
     })
@@ -115,7 +115,6 @@ export default function Jogos({ user, isAdmin }) {
     if (isNaN(g1) || isNaN(g2) || g1 < 0 || g2 < 0) return showMsg('Placar inválido.')
     const nome = perfilUsuario?.nome || user.email
     const dadosPalpite = { g1, g2, uid: user.uid, jogoId, nome }
-    // Salva nos dois lugares ao mesmo tempo
     await Promise.all([
       setDoc(doc(db,'mm_palpites',user.uid,'jogos',key), dadosPalpite),
       setDoc(doc(db,'mm_palpites_jogo',key,'usuarios',user.uid), dadosPalpite)
@@ -135,6 +134,7 @@ export default function Jogos({ user, isAdmin }) {
           time2={getTime2(raioxJogo)}
           resultado={resultados[String(raioxJogo.id)]}
           onClose={() => setRaioxJogo(null)}
+          modo={raioxModo}
         />
       )}
 
@@ -204,9 +204,15 @@ export default function Jogos({ user, isAdmin }) {
               <div style={{...s.palpRow,color:'#888',fontSize:13}}>Entre para fazer seu palpite</div>
             )}
             {prazoFechou && definido && user && (
-              <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid #f0f0f0'}}>
-                <button style={s.raioxBtn} onClick={()=>setRaioxJogo(jogo)}>
-                  📊 Ver Raio-X dos palpites
+              <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid #f0f0f0',display:'flex',gap:8,flexWrap:'wrap'}}>
+                <button style={s.raioxBtn} onClick={()=>{setRaioxModo('lista');setRaioxJogo(jogo)}}>
+                  📋 Ver palpites
+                </button>
+                <button style={{...s.raioxBtn,background:'#ede7f6',color:'#512da8'}} onClick={()=>{setRaioxModo('stats');setRaioxJogo(jogo)}}>
+                  📊 Estatísticas
+                </button>
+                <button style={{...s.raioxBtn,background:'#e8f5e9',color:'#2e7d32'}} onClick={()=>{setRaioxModo('grid');setRaioxJogo(jogo)}}>
+                  🗂️ Por placar
                 </button>
               </div>
             )}
