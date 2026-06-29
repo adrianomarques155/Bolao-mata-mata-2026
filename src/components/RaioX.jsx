@@ -9,13 +9,26 @@ export default function RaioX({ jogo, time1, time2, resultado, onClose }) {
 
   useEffect(() => {
     async function carregar() {
-      // Uma única consulta — muito mais rápido!
-      const snapP = await getDocs(collection(db,'mm_palpites_jogo',String(jogo.id),'usuarios'))
-      const todos = []
-      snapP.forEach(d => {
-        todos.push({ uid: d.id, ...d.data() })
-      })
-      todos.sort((a,b) => a.nome.localeCompare(b.nome))
+      const snapU = await getDocs(collection(db,'usuarios'))
+      const us = {}
+      snapU.forEach(d => { us[d.id] = d.data() })
+
+      // Busca todos em paralelo — muito mais rápido!
+      const promises = Object.keys(us).map(uid =>
+        getDocs(collection(db,'mm_palpites',uid,'jogos'))
+          .then(snap => {
+            const found = []
+            snap.forEach(d => {
+              if (d.id === String(jogo.id)) {
+                found.push({ uid, nome: us[uid]?.nome || '?', ...d.data() })
+              }
+            })
+            return found
+          })
+          .catch(() => [])
+      )
+      const results = await Promise.all(promises)
+      const todos = results.flat().sort((a,b) => a.nome.localeCompare(b.nome))
       setPalpites(todos)
       setLoading(false)
     }
@@ -96,9 +109,14 @@ export default function RaioX({ jogo, time1, time2, resultado, onClose }) {
 
         <div style={s.body}>
           {loading ? (
-            <div style={{textAlign:'center',padding:40,color:'#888'}}>Carregando palpites...</div>
+            <div style={{textAlign:'center',padding:40}}>
+              <div style={{fontSize:32,marginBottom:12}}>⏳</div>
+              <div style={{color:'#888',fontSize:14}}>Carregando palpites...</div>
+            </div>
           ) : palpites.length === 0 ? (
-            <div style={{textAlign:'center',padding:40,color:'#888'}}>Nenhum palpite registrado.</div>
+            <div style={{textAlign:'center',padding:40,color:'#888'}}>
+              Nenhum palpite registrado.
+            </div>
           ) : (
             <>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:16,flexWrap:'wrap',gap:8}}>
