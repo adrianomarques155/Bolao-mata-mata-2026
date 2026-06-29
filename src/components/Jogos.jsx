@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { collection, onSnapshot, doc, setDoc } from 'firebase/firestore'
+import { collection, onSnapshot, doc, setDoc, getDoc } from 'firebase/firestore'
 import { db } from '../firebase'
 import { JOGOS } from '../jogos'
 import { calcPontos, ptsColor, ptsLabel } from '../pontuacao'
@@ -53,6 +53,7 @@ export default function Jogos({ user, isAdmin }) {
   const [resultados, setResultados] = useState({})
   const [timesJogos, setTimesJogos] = useState({})
   const [meusPalpites, setMeusPalpites] = useState({})
+  const [perfilUsuario, setPerfilUsuario] = useState(null)
   const [editando, setEditando] = useState({})
   const [fase, setFase] = useState('TODOS')
   const [msg, setMsg] = useState('')
@@ -83,6 +84,10 @@ export default function Jogos({ user, isAdmin }) {
     const unsub = onSnapshot(collection(db,'mm_palpites',user.uid,'jogos'), snap => {
       const p={}; snap.forEach(d=>{p[d.id]=d.data()}); setMeusPalpites(p)
     })
+    // Busca perfil para ter o nome
+    getDoc(doc(db,'usuarios',user.uid)).then(snap => {
+      if (snap.exists()) setPerfilUsuario(snap.data())
+    })
     return unsub
   }, [user])
 
@@ -92,8 +97,7 @@ export default function Jogos({ user, isAdmin }) {
   function getTime1(jogo) { return timesJogos[String(jogo.id)]?.time1 || jogo.time1 }
   function getTime2(jogo) { return timesJogos[String(jogo.id)]?.time2 || jogo.time2 }
   function jogoDefinido(jogo) {
-    const t1 = getTime1(jogo)
-    const t2 = getTime2(jogo)
+    const t1 = getTime1(jogo), t2 = getTime2(jogo)
     return !t1.startsWith('Vencedor') && !t1.startsWith('Perdedor') &&
            !t2.startsWith('Vencedor') && !t2.startsWith('Perdedor')
   }
@@ -109,7 +113,13 @@ export default function Jogos({ user, isAdmin }) {
     if (g1val === '' || g2val === '') return showMsg('Preencha o placar.')
     const g1 = parseInt(g1val), g2 = parseInt(g2val)
     if (isNaN(g1) || isNaN(g2) || g1 < 0 || g2 < 0) return showMsg('Placar inválido.')
-    await setDoc(doc(db,'mm_palpites',user.uid,'jogos',key),{g1,g2,uid:user.uid,jogoId})
+    const nome = perfilUsuario?.nome || user.email
+    const dadosPalpite = { g1, g2, uid: user.uid, jogoId, nome }
+    // Salva nos dois lugares ao mesmo tempo
+    await Promise.all([
+      setDoc(doc(db,'mm_palpites',user.uid,'jogos',key), dadosPalpite),
+      setDoc(doc(db,'mm_palpites_jogo',key,'usuarios',user.uid), dadosPalpite)
+    ])
     setEditando(p=>{const n={...p};delete n[key];return n})
     showMsg('Palpite salvo! ✓')
   }
@@ -152,22 +162,16 @@ export default function Jogos({ user, isAdmin }) {
                 {new Date(jogo.data+'T12:00:00').toLocaleDateString('pt-BR',{weekday:'short',day:'2-digit',month:'short'})} • {jogo.hora}h • {jogo.cidade}
               </span>
             </div>
-
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',margin:'8px 0'}}>
               <span style={{...s.time,color:definido?'#1a1a1a':'#aaa'}}>{t1}</span>
-              {res
-                ? <span style={s.placar}>{res.g1} — {res.g2}</span>
-                : <span style={s.vs}>×</span>
-              }
+              {res ? <span style={s.placar}>{res.g1} — {res.g2}</span> : <span style={s.vs}>×</span>}
               <span style={{...s.time,textAlign:'right',color:definido?'#1a1a1a':'#aaa'}}>{t2}</span>
             </div>
-
             {!definido && (
               <div style={{fontSize:12,color:'#aaa',textAlign:'center',marginBottom:4}}>
                 ⏳ Aguardando definição dos times
               </div>
             )}
-
             {user && !isAdmin && definido && (
               <div style={s.palpRow}>
                 <span style={{fontSize:13,color:'#666',marginRight:4}}>Palpite:</span>
@@ -196,11 +200,9 @@ export default function Jogos({ user, isAdmin }) {
                 )}
               </div>
             )}
-
             {!user && definido && (
               <div style={{...s.palpRow,color:'#888',fontSize:13}}>Entre para fazer seu palpite</div>
             )}
-
             {prazoFechou && definido && user && (
               <div style={{marginTop:8,paddingTop:8,borderTop:'1px solid #f0f0f0'}}>
                 <button style={s.raioxBtn} onClick={()=>setRaioxJogo(jogo)}>

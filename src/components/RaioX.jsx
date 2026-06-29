@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react'
 import { collection, getDocs } from 'firebase/firestore'
 import { db } from '../firebase'
@@ -10,19 +9,12 @@ export default function RaioX({ jogo, time1, time2, resultado, onClose }) {
 
   useEffect(() => {
     async function carregar() {
-      const snapU = await getDocs(collection(db,'usuarios'))
-      const us = {}
-      snapU.forEach(d => { us[d.id] = d.data() })
-
+      // Uma única consulta — muito mais rápido!
+      const snapP = await getDocs(collection(db,'mm_palpites_jogo',String(jogo.id),'usuarios'))
       const todos = []
-      for (const uid of Object.keys(us)) {
-        const snapP = await getDocs(collection(db,'mm_palpites',uid,'jogos'))
-        snapP.forEach(d => {
-          if (d.id === String(jogo.id)) {
-            todos.push({ uid, nome: us[uid]?.nome || '?', ...d.data() })
-          }
-        })
-      }
+      snapP.forEach(d => {
+        todos.push({ uid: d.id, ...d.data() })
+      })
       todos.sort((a,b) => a.nome.localeCompare(b.nome))
       setPalpites(todos)
       setLoading(false)
@@ -31,7 +23,7 @@ export default function RaioX({ jogo, time1, time2, resultado, onClose }) {
   }, [jogo.id])
 
   function nomeCurto(nome) {
-    const partes = nome.split(' ').filter(Boolean)
+    const partes = (nome||'?').split(' ').filter(Boolean)
     if (partes.length === 1) return partes[0]
     return `${partes[0]} ${partes[1]}`
   }
@@ -114,11 +106,11 @@ export default function RaioX({ jogo, time1, time2, resultado, onClose }) {
                   <strong>{total}</strong> palpite{total!==1?'s':''} no total
                 </div>
                 {resultado && (
-                  <div style={{display:'flex',gap:8,fontSize:11,flexWrap:'wrap'}}>
-                    <span style={{background:'#e8f5e9',color:'#2e7d32',padding:'2px 8px',borderRadius:99,fontWeight:600}}>🎯 10pts exato</span>
-                    <span style={{background:'#e3f2fd',color:'#1565c0',padding:'2px 8px',borderRadius:99,fontWeight:600}}>🤝 6pts empate</span>
-                    <span style={{background:'#fff3e0',color:'#e65100',padding:'2px 8px',borderRadius:99,fontWeight:600}}>✅ 2-4pts parcial</span>
-                    <span style={{background:'#ffebee',color:'#c62828',padding:'2px 8px',borderRadius:99,fontWeight:600}}>❌ 0pts errou</span>
+                  <div style={{display:'flex',gap:6,fontSize:11,flexWrap:'wrap'}}>
+                    <span style={{background:'#e8f5e9',color:'#2e7d32',padding:'2px 8px',borderRadius:99,fontWeight:600}}>🎯 10pts</span>
+                    <span style={{background:'#e3f2fd',color:'#1565c0',padding:'2px 8px',borderRadius:99,fontWeight:600}}>🤝 6pts</span>
+                    <span style={{background:'#fff3e0',color:'#e65100',padding:'2px 8px',borderRadius:99,fontWeight:600}}>✅ 2-4pts</span>
+                    <span style={{background:'#ffebee',color:'#c62828',padding:'2px 8px',borderRadius:99,fontWeight:600}}>❌ 0pts</span>
                   </div>
                 )}
               </div>
@@ -135,14 +127,12 @@ export default function RaioX({ jogo, time1, time2, resultado, onClose }) {
                     <div style={s.barWrap}>
                       <span style={{fontSize:17,fontWeight:800,minWidth:40,color:cor}}>{placar}</span>
                       <div style={{flex:1,background:'#f0f0f0',borderRadius:4,height:14,overflow:'hidden'}}>
-                        <div style={{width:`${barPct}%`,height:'100%',background:cor,borderRadius:4,transition:'width 0.3s'}}/>
+                        <div style={{width:`${barPct}%`,height:'100%',background:cor,borderRadius:4}}/>
                       </div>
                       <span style={{fontSize:13,fontWeight:600,minWidth:70,textAlign:'right',color:cor}}>
                         {lista.length} ({pct}%)
                       </span>
-                      {pts !== null && (
-                        <span style={s.badge(cor)}>{pts}pts</span>
-                      )}
+                      {pts !== null && <span style={s.badge(cor)}>{pts}pts</span>}
                     </div>
                     <div style={{display:'flex',flexWrap:'wrap',gap:2,marginTop:4}}>
                       {lista.map(p => (
@@ -155,22 +145,18 @@ export default function RaioX({ jogo, time1, time2, resultado, onClose }) {
                 )
               })}
 
-              <h3 style={{fontSize:15,fontWeight:700,color:'#7b1fa2',marginTop:20,marginBottom:12}}>👥 Lista alfabética completa</h3>
+              <h3 style={{fontSize:15,fontWeight:700,color:'#7b1fa2',marginTop:20,marginBottom:12}}>👥 Lista alfabética</h3>
               <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
                 {palpites.map(p => {
                   const pts = resultado ? calcPontos(p, resultado) : null
                   return (
-                    <div key={p.uid} style={{
-                      background:'#f8f8f8',borderRadius:8,padding:'6px 12px',fontSize:13,
-                      border:'0.5px solid #e0e0e0',display:'flex',alignItems:'center',gap:6
-                    }}>
+                    <div key={p.uid} style={{background:'#f8f8f8',borderRadius:8,padding:'6px 12px',fontSize:13,border:'0.5px solid #e0e0e0',display:'flex',alignItems:'center',gap:6}}>
                       <span style={{fontWeight:500}}>{nomeCurto(p.nome)}</span>
                       <span style={{color:'#888',fontWeight:600}}>{p.g1}×{p.g2}</span>
                       {pts !== null && (
-                        <span style={{
-                          color: pts===10?'#2e7d32': pts>=6?'#1565c0': pts>=2?'#e65100':'#c62828',
-                          fontWeight:700,fontSize:12
-                        }}>({pts}pts)</span>
+                        <span style={{color:pts===10?'#2e7d32':pts>=6?'#1565c0':pts>=2?'#e65100':'#c62828',fontWeight:700,fontSize:12}}>
+                          ({pts}pts)
+                        </span>
                       )}
                     </div>
                   )
@@ -179,15 +165,15 @@ export default function RaioX({ jogo, time1, time2, resultado, onClose }) {
 
               {resultado && (
                 <div style={{marginTop:16,background:'#f3e5f5',borderRadius:10,padding:'12px 16px'}}>
-                  <div style={{fontSize:13,fontWeight:700,color:'#7b1fa2',marginBottom:6}}>🏆 Resumo de pontuação</div>
-                  <div style={{display:'flex',gap:12,flexWrap:'wrap',fontSize:13}}>
+                  <div style={{fontSize:13,fontWeight:700,color:'#7b1fa2',marginBottom:8}}>🏆 Resumo de pontuação</div>
+                  <div style={{display:'flex',gap:16,flexWrap:'wrap',fontSize:13}}>
                     {[10,6,4,3,2,0].map(p => {
                       const count = palpites.filter(pp => calcPontos(pp,resultado)===p).length
                       if (count === 0) return null
                       return (
                         <div key={p} style={{textAlign:'center'}}>
-                          <div style={{fontWeight:700,fontSize:18,color:'#7b1fa2'}}>{count}</div>
-                          <div style={{fontSize:11,color:'#888'}}>{p}pts</div>
+                          <div style={{fontWeight:700,fontSize:20,color:'#7b1fa2'}}>{count}</div>
+                          <div style={{fontSize:11,color:'#888'}}>{p} pts</div>
                         </div>
                       )
                     })}
