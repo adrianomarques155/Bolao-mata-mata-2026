@@ -33,12 +33,6 @@ export default function RaioX({ jogo, time1, time2, resultado, onClose, modo }) 
     carregar()
   }, [jogo.id])
 
-  function nomeCurto(nome) {
-    const partes = (nome||'?').split(' ').filter(Boolean)
-    if (partes.length === 1) return partes[0]
-    return `${partes[0]} ${partes[1]}`
-  }
-
   const grupos = {}
   palpites.forEach(p => {
     const key = `${p.g1}x${p.g2}`
@@ -52,7 +46,6 @@ export default function RaioX({ jogo, time1, time2, resultado, onClose, modo }) 
   const total = palpites.length
   const maxCount = gruposOrdenados[0]?.[1].length || 1
 
-  // Tendência
   const vit1 = palpites.filter(p=>p.g1>p.g2).length
   const emp  = palpites.filter(p=>p.g1===p.g2).length
   const vit2 = palpites.filter(p=>p.g1<p.g2).length
@@ -86,7 +79,6 @@ export default function RaioX({ jogo, time1, time2, resultado, onClose, modo }) 
     }
   }
 
-  // Gráfico de rosca SVG
   function Rosca() {
     const cx=100, cy=100, r=70, ri=45
     const total2 = vit1+emp+vit2 || 1
@@ -128,7 +120,6 @@ export default function RaioX({ jogo, time1, time2, resultado, onClose, modo }) 
     )
   }
 
-  // Gráfico de barras horizontal SVG
   function Barras() {
     const maxW = 260
     return (
@@ -140,7 +131,7 @@ export default function RaioX({ jogo, time1, time2, resultado, onClose, modo }) 
           return (
             <div key={placar} style={{display:'flex',alignItems:'center',gap:8,marginBottom:8}}>
               <span style={{fontSize:13,fontWeight:600,minWidth:36,textAlign:'right',color:'#333'}}>{placar}</span>
-              <div style={{flex:1,background:'#f0f0f0',borderRadius:4,height:22,position:'relative',maxWidth:maxW}}>
+              <div style={{flex:1,background:'#f0f0f0',borderRadius:4,height:22,position:'relative',maxWidth:maxW,overflow:'hidden'}}>
                 <div style={{width:w,height:'100%',background:cor,borderRadius:4}}/>
               </div>
               <span style={{fontSize:13,fontWeight:700,color:cor,minWidth:20}}>{lista.length}</span>
@@ -175,7 +166,7 @@ export default function RaioX({ jogo, time1, time2, resultado, onClose, modo }) 
         </div>
 
         {!loading && (
-          <div style={{display:'flex',gap:8,padding:'12px 16px 0',borderBottom:'1px solid #f0f0f0',paddingBottom:12}}>
+          <div style={{display:'flex',gap:8,padding:'12px 16px',borderBottom:'1px solid #f0f0f0'}}>
             <button style={s.tabBtn(view==='lista')} onClick={()=>setView('lista')}>📋 Lista</button>
             <button style={s.tabBtn(view==='stats')} onClick={()=>setView('stats')}>📊 Estatísticas</button>
             <button style={s.tabBtn(view==='grid')} onClick={()=>setView('grid')}>🗂️ Por placar</button>
@@ -219,31 +210,29 @@ export default function RaioX({ jogo, time1, time2, resultado, onClose, modo }) 
               )}
 
               {view === 'grid' && (
-                <div>
-                  <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10}}>
-                    {gruposOrdenados.map(([placar, lista]) => {
-                      const cor = corPlacar(placar)
-                      const pts = ptsPlacar(placar)
-                      return (
-                        <div key={placar} style={{borderRadius:10,overflow:'hidden',border:`1.5px solid ${cor}`}}>
-                          <div style={{background:cor,color:'#fff',padding:'8px 12px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-                            <span style={{fontSize:16,fontWeight:800}}>{placar}</span>
-                            <div style={{textAlign:'right'}}>
-                              <div style={{fontSize:13,fontWeight:600}}>{lista.length}</div>
-                              {pts!==null && <div style={{fontSize:10,opacity:0.9}}>{pts}pts</div>}
-                            </div>
-                          </div>
-                          <div style={{padding:'8px 10px',background:'#fafafa'}}>
-                            {lista.map(p => (
-                              <div key={p.uid} style={{fontSize:12,color:'#333',padding:'2px 0',borderBottom:'0.5px solid #f0f0f0'}}>
-                                {p.nome}
-                              </div>
-                            ))}
+                <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(200px,1fr))',gap:10}}>
+                  {gruposOrdenados.map(([placar, lista]) => {
+                    const cor = corPlacar(placar)
+                    const pts = ptsPlacar(placar)
+                    return (
+                      <div key={placar} style={{borderRadius:10,overflow:'hidden',border:`1.5px solid ${cor}`}}>
+                        <div style={{background:cor,color:'#fff',padding:'8px 12px',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                          <span style={{fontSize:16,fontWeight:800}}>{placar}</span>
+                          <div style={{textAlign:'right'}}>
+                            <div style={{fontSize:13,fontWeight:600}}>{lista.length}</div>
+                            {pts!==null && <div style={{fontSize:10,opacity:0.9}}>{pts}pts</div>}
                           </div>
                         </div>
-                      )
-                    })}
-                  </div>
+                        <div style={{padding:'8px 10px',background:'#fafafa'}}>
+                          {lista.map(p => (
+                            <div key={p.uid} style={{fontSize:12,color:'#333',padding:'3px 0',borderBottom:'0.5px solid #f0f0f0'}}>
+                              {p.nome || '?'}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
               )}
 
@@ -276,13 +265,14 @@ export default function RaioX({ jogo, time1, time2, resultado, onClose, modo }) 
                         <div style={{display:'flex',flexWrap:'wrap'}}>
                           {lista.map(p => (
                             <span key={p.uid} style={nomeTag(resultado?calcPontos(p,resultado):null)}>
-                              {nomeCurto(p.nome)}
+                              {p.nome || '?'}
                             </span>
                           ))}
                         </div>
                       </div>
                     )
                   })}
+
                   <div style={{marginTop:16}}>
                     <div style={{fontSize:13,fontWeight:600,color:'#555',marginBottom:8}}>👥 Lista alfabética ({total})</div>
                     <div style={{display:'flex',flexWrap:'wrap',gap:6}}>
@@ -290,9 +280,13 @@ export default function RaioX({ jogo, time1, time2, resultado, onClose, modo }) 
                         const pts = resultado?calcPontos(p,resultado):null
                         return (
                           <div key={p.uid} style={{background:'#f8f8f8',borderRadius:8,padding:'5px 10px',fontSize:12,border:'0.5px solid #e0e0e0',display:'flex',gap:5,alignItems:'center'}}>
-                            <span style={{fontWeight:500}}>{nomeCurto(p.nome)}</span>
+                            <span style={{fontWeight:500}}>{p.nome || '?'}</span>
                             <span style={{color:'#888',fontWeight:600}}>{p.g1}×{p.g2}</span>
-                            {pts!==null && <span style={{color:pts===10?'#2e7d32':pts>=6?'#1565c0':pts>=2?'#e65100':'#c62828',fontWeight:700,fontSize:11}}>({pts}pts)</span>}
+                            {pts!==null && (
+                              <span style={{color:pts===10?'#2e7d32':pts>=6?'#1565c0':pts>=2?'#e65100':'#c62828',fontWeight:700,fontSize:11}}>
+                                ({pts}pts)
+                              </span>
+                            )}
                           </div>
                         )
                       })}
