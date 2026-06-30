@@ -28,6 +28,7 @@ function faseLabel(fase) {
 export default function Admin() {
   const [resultados, setResultados] = useState({})
   const [timesJogos, setTimesJogos] = useState({})
+  const [dadosJogos, setDadosJogos] = useState({})
   const [usuarios, setUsuarios] = useState({})
   const [palpites, setPalpites] = useState({})
   const [editando, setEditando] = useState({})
@@ -48,7 +49,10 @@ export default function Admin() {
     const u3 = onSnapshot(collection(db,'usuarios'), snap => {
       const u={}; snap.forEach(d=>{u[d.id]=d.data()}); setUsuarios(u)
     })
-    return () => { u1(); u2(); u3() }
+    const u4 = onSnapshot(collection(db,'mm_jogos'), snap => {
+      const j={}; snap.forEach(d=>{j[d.id]=d.data()}); setDadosJogos(j)
+    })
+    return () => { u1(); u2(); u3(); u4() }
   }, [])
 
   useEffect(() => {
@@ -60,6 +64,16 @@ export default function Admin() {
   }, [usuarios])
 
   const fases = ['16avos','oitavas','quartas','semifinal','terceiro','final']
+
+  // Pega dados do jogo — prioriza Firestore sobre o arquivo jogos.js
+  function getJogoData(jogo) {
+    const override = dadosJogos[String(jogo.id)]
+    return {
+      data: override?.data || jogo.data,
+      hora: override?.hora || jogo.hora,
+    }
+  }
+
   const filtrados = JOGOS.filter(j=>j.fase===fase)
 
   function showMsg(m) { setMsg(m); setTimeout(()=>setMsg(''),2500) }
@@ -90,12 +104,11 @@ export default function Admin() {
     showMsg('Times atualizados! ✓')
   }
 
-  async function salvarDadosJogo(jogoId) {
-    const ej = editJogo[jogoId]
-    if (!ej) return
-    await setDoc(doc(db,'mm_jogos',String(jogoId)),{...ej})
+  async function salvarDadosJogo(jogoId, data, hora) {
+    if (!data || !hora) return showMsg('Preencha data e hora.')
+    await setDoc(doc(db,'mm_jogos',String(jogoId)),{data, hora}, {merge:true})
     setEditJogo(p=>{const n={...p};delete n[jogoId];return n})
-    showMsg('Jogo atualizado! ✓')
+    showMsg('Data/hora atualizada! ✓')
   }
 
   async function togglePagamento(uid, pagoMM) {
@@ -149,6 +162,7 @@ export default function Admin() {
             const modoEdicao = ep.g1 !== undefined
             const t1 = getTime1(jogo)
             const t2 = getTime2(jogo)
+            const {data, hora} = getJogoData(jogo)
             return (
               <div key={jogo.id} style={s.card}>
                 <div style={{display:'flex',justifyContent:'space-between',fontSize:12,color:'#888',marginBottom:6}}>
@@ -156,7 +170,7 @@ export default function Admin() {
                   <div style={{display:'flex',gap:6,alignItems:'center'}}>
                     {res?.automatico && <span style={s.badge('#1565c0')}>🤖 Auto</span>}
                     {res?.manual && <span style={s.badge('#2e7d32')}>✋ Manual</span>}
-                    <span>{new Date(jogo.data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})} {jogo.hora}h</span>
+                    <span>{new Date(data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})} {hora}h</span>
                   </div>
                 </div>
                 <div style={{fontWeight:700,fontSize:16,marginBottom:10}}>{t1} × {t2}</div>
@@ -193,31 +207,40 @@ export default function Admin() {
 
       {aba === 'times' && (
         <>
-          <p style={{fontSize:13,color:'#888',marginBottom:12}}>Atualize os times quando o resultado anterior for definido</p>
+          <p style={{fontSize:13,color:'#888',marginBottom:12}}>Atualize os times e datas conforme os resultados saírem</p>
           {filtrados.map(jogo => {
             const t1 = getTime1(jogo)
             const t2 = getTime2(jogo)
             const et = editTimes[jogo.id] || {}
             const ej = editJogo[jogo.id] || {}
+            const {data, hora} = getJogoData(jogo)
             const definido = !t1.startsWith('Vencedor') && !t1.startsWith('Perdedor')
             return (
               <div key={jogo.id} style={s.card}>
                 <div style={{fontSize:12,color:'#888',marginBottom:8}}>
-                  J{jogo.id} • {faseLabel(jogo.fase)} • {new Date(jogo.data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})} {jogo.hora}h
+                  J{jogo.id} • {faseLabel(jogo.fase)} • {new Date(data+'T12:00:00').toLocaleDateString('pt-BR',{day:'2-digit',month:'short'})} {hora}h • {jogo.cidade}
                 </div>
                 <div style={{fontWeight:600,marginBottom:12,color:definido?'#1a1a1a':'#aaa'}}>{t1} × {t2}</div>
+
                 <div style={{marginBottom:12}}>
                   <div style={{fontSize:12,fontWeight:600,color:'#555',marginBottom:6}}>✏️ Atualizar times:</div>
                   <input style={s.inpText} placeholder="Time 1" value={et.time1!==undefined?et.time1:t1} onChange={e=>setEditTimes(p=>({...p,[jogo.id]:{...et,time1:e.target.value}}))} />
                   <input style={s.inpText} placeholder="Time 2" value={et.time2!==undefined?et.time2:t2} onChange={e=>setEditTimes(p=>({...p,[jogo.id]:{...et,time2:e.target.value}}))} />
                   <button style={s.btn()} onClick={()=>salvarTimes(jogo.id)}>Salvar times</button>
                 </div>
+
                 <div>
                   <div style={{fontSize:12,fontWeight:600,color:'#555',marginBottom:6}}>🕐 Ajustar data/hora:</div>
-                  <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
-                    <input type="date" style={{...s.inpText,width:'auto',marginBottom:0}} value={ej.data||jogo.data} onChange={e=>setEditJogo(p=>({...p,[jogo.id]:{...ej,data:e.target.value}}))} />
-                    <input type="time" style={{...s.inpText,width:'auto',marginBottom:0}} value={ej.hora||jogo.hora} onChange={e=>setEditJogo(p=>({...p,[jogo.id]:{...ej,hora:e.target.value}}))} />
-                    <button style={s.btn('#e65100')} onClick={()=>salvarDadosJogo(jogo.id)}>Salvar data/hora</button>
+                  <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
+                    <input type="date" style={{padding:'8px 12px',borderRadius:8,border:'1px solid #ddd',fontSize:14}}
+                      value={ej.data !== undefined ? ej.data : data}
+                      onChange={e=>setEditJogo(p=>({...p,[jogo.id]:{...ej,data:e.target.value,hora:ej.hora!==undefined?ej.hora:hora}}))} />
+                    <input type="time" style={{padding:'8px 12px',borderRadius:8,border:'1px solid #ddd',fontSize:14}}
+                      value={ej.hora !== undefined ? ej.hora : hora}
+                      onChange={e=>setEditJogo(p=>({...p,[jogo.id]:{...ej,hora:e.target.value,data:ej.data!==undefined?ej.data:data}}))} />
+                    <button style={s.btn('#e65100')} onClick={()=>salvarDadosJogo(jogo.id, ej.data||data, ej.hora||hora)}>
+                      Salvar data/hora
+                    </button>
                   </div>
                 </div>
               </div>
@@ -257,7 +280,7 @@ export default function Admin() {
                   <div style={{fontWeight:600}}>{u.nome}</div>
                   <div style={{fontSize:12,color:'#888'}}>{u.email} {u.telefone?`• ${u.telefone}`:''}</div>
                   {u.cpf && <div style={{fontSize:12,color:'#888'}}>CPF: {u.cpf}</div>}
-                  {u.pago && <div style={{fontSize:11,color:'#2e7d32'}}>✅ Pagou o bolão da fase de grupos</div>}
+                  {u.pago && <div style={{fontSize:11,color:'#2e7d32'}}>✅ Pagou fase de grupos</div>}
                 </div>
                 <button style={s.btn('#2e7d32')} onClick={()=>togglePagamento(uid,u.pagoMM)}>✅ Confirmar</button>
               </div>
